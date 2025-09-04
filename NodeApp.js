@@ -61,7 +61,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: ['https://faithconnectapp-ow9jpodet-osilamas-projects.vercel.app', 'http://localhost:5173'],
+    origin: ['https://faithconnectapp-ow9jpodet-osilamas-projects.vercel.app', 'http://localhost:5173', 'http://localhost:5174'],
     credentials: true
 
 }));
@@ -91,7 +91,7 @@ const memberSignupSchema = Joi.object({
 });
 
 // Member signup endpoint
-app.post('/api/members/signup', async (req, res) => {
+app.post('/members/signup', async (req, res) => {
     try {
         // Validate input
         const { error, value } = memberSignupSchema.validate(req.body);
@@ -183,7 +183,7 @@ app.post('/api/members/signup', async (req, res) => {
 });
 
 // Member login endpoint
-app.post('/api/members/login', async (req, res) => {
+app.post('/members/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -264,7 +264,7 @@ app.post('/api/members/login', async (req, res) => {
 });
 
 // Get member profile (protected route)
-app.get('/api/members/profile', authenticateToken, async (req, res) => {
+app.get('/members/profile', authenticateToken, async (req, res) => {
     try {
         const member = await pool.query(
             'SELECT id, first_name, last_name, email, phone, date_of_birth, gender, address, church_role, join_date FROM members WHERE id = $1',
