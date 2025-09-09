@@ -78,11 +78,12 @@ const cors = require('cors');
 const { Pool } = require('pg');
 require('dotenv').config();
 
+
 const app = express();
 
 // Middleware
 app.use(cors({
-    origin: ['https://faithconnectapp-ow9jpodet-osilamas-projects.vercel.app', 'https://faithconnectapp.vercel.app', 'http://localhost:5173', 'http://localhost:5174'],
+    origin: ['https://faithconnectapp.vercel.app/','https://faithconnectapp-ow9jpodet-osilamas-projects.vercel.app', 'http://localhost:5173'],
     credentials: true
 
 }));
@@ -94,16 +95,15 @@ const pool = new Pool({
     // host: process.env.DB_HOST,
     // database: process.env.DB_NAME,
     // password: process.env.DB_PASSWORD,
-    // port: process.env.DB_PORT || 5432,
+    port: process.env.DB_PORT || 6543,
     connectionString: process.env.DATABASE_URL,
     ssl: {
         rejectUnauthorized: false,
         sslmode: 'require',
 
     },
-    max: 20,
     idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-    connectionTimeoutMillis: 10000, // Return an error after 2 seconds if connection could not be established
+    connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
     retryAttempts: 3 // Number of times to retry a failed connectio
 });
 
@@ -127,7 +127,7 @@ pool.query('SELECT NOW()', (err, res) => {
 
 // Test connection with retry logic
 const testConnection = async () => {
-    let retries = 5;
+    let retries = 4;
     while (retries) {
         try {
             const client = await pool.connect();
@@ -138,7 +138,7 @@ const testConnection = async () => {
             console.error('Database connection error:', err.message);
             retries -= 1;
             console.log(`Retries left: ${retries}`);
-            await new Promise(res => setTimeout(res, 8000)); // Wait 8 seconds before retrying
+            await new Promise(res => setTimeout(res, 5000)); // Wait 5 seconds before retrying
         }
     }
 };
