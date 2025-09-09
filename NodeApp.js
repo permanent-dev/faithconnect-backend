@@ -6,9 +6,10 @@
 
 /*
 -- SQL Commands to run in your PostgreSQL database
+// psql -u faithconnect_db;
+
 CREATE DATABASE faithconnect_db;
 
-// USE faithconnect_db;
 
 CREATE TABLE members (
     id SERIAL PRIMARY KEY,
@@ -49,6 +50,26 @@ CREATE INDEX idx_members_phone ON members(phone);
 }
 */
 
+// // Connect to PostgreSQL
+// psql -U postgres
+// //  List databases
+// \l
+
+// // Create database if it doesn't exist
+// CREATE DATABASE faithconnect_db;
+
+// //  Connect to database
+// \c faithconnect_db
+
+// // Check if members table exists
+// \dt
+
+
+
+
+
+
+
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -61,7 +82,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: ['https://faithconnectapp-ow9jpodet-osilamas-projects.vercel.app','https://faithconnectapp.vercel.app', 'http://localhost:5173', 'http://localhost:5174'],
+    origin: ['https://faithconnectapp-ow9jpodet-osilamas-projects.vercel.app', 'https://faithconnectapp.vercel.app', 'http://localhost:5173', 'http://localhost:5174'],
     credentials: true
 
 }));
@@ -69,20 +90,72 @@ app.use(express.json());
 
 // PostgreSQL connection
 const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT || 5432,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    // user: process.env.DB_USER,
+    // host: process.env.DB_HOST,
+    // database: process.env.DB_NAME,
+    // password: process.env.DB_PASSWORD,
+    // port: process.env.DB_PORT || 5432,
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false,
+        sslmode: 'require',
+
+    },
+    max: 20,
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 10000, // Return an error after 2 seconds if connection could not be established
+    retryAttempts: 3 // Number of times to retry a failed connectio
 });
+
+// After pool configuration
+pool.on('error', (err, client) => {
+    console.error('Unexpected database error on idle client:', err);
+    if (client) client.release();
+    process.exit(-1);
+});
+
+
+
+// Test connection
+pool.query('SELECT NOW()', (err, res) => {
+    if (err) {
+        console.error('Database connection test failed:', err.message);
+    } else {
+        console.log('Database connection test successful');
+    }
+});
+
+// Test connection with retry logic
+const testConnection = async () => {
+    let retries = 5;
+    while (retries) {
+        try {
+            const client = await pool.connect();
+            console.log('Database connected successfully');
+            client.release();
+            break;
+        } catch (err) {
+            console.error('Database connection error:', err.message);
+            retries -= 1;
+            console.log(`Retries left: ${retries}`);
+            await new Promise(res => setTimeout(res, 8000)); // Wait 8 seconds before retrying
+        }
+    }
+};
+
+testConnection();
+
+
+
 
 // Validation schema
 const memberSignupSchema = Joi.object({
     firstName: Joi.string().min(2).max(100).required(),
     lastName: Joi.string().min(2).max(100).required(),
     email: Joi.string().email().required(),
-    phone: Joi.string().pattern(/^[\+]?[1-9][\d]{0,15}$/).optional(),
+    phone: Joi.string().pattern(/^[\+]?[1-9][\d]{0,15}$/).optional().messages({
+        'string.pattern.base': 'Phone number must be valid international format'
+    }),
     password: Joi.string().min(8).required(),
     dateOfBirth: Joi.date().optional(),
     gender: Joi.string().valid('male', 'female', 'other').optional(),
@@ -91,7 +164,7 @@ const memberSignupSchema = Joi.object({
 });
 
 // Member signup endpoint
-app.post('/members/signup', async (req, res) => {
+app.post(`/members/signup`, async (req, res) => {
     try {
         // Validate input
         const { error, value } = memberSignupSchema.validate(req.body);
@@ -134,10 +207,10 @@ app.post('/members/signup', async (req, res) => {
 
         // Insert new member
         const insertQuery = `
-      INSERT INTO members (
-        first_name, last_name, email, phone, password_hash,
-        date_of_birth, gender, address, church_role
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO members(
+    first_name, last_name, email, phone, password_hash,
+    date_of_birth, gender, address, church_role
+) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id, first_name, last_name, email, church_role, join_date
     `;
 
@@ -174,16 +247,23 @@ app.post('/members/signup', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Signup error:', error);
+        console.error('Signup error:', {
+            message: error.message,
+            stack: error.stack,
+            detail: error.detail,
+
+        });
         res.status(500).json({
             success: false,
-            message: 'Internal server error'
+            message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : error.message
+
         });
     }
 });
 
 // Member login endpoint
-app.post('/members/login', async (req, res) => {
+app.post(`/members/login`, async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -317,7 +397,7 @@ function authenticateToken(req, res, next) {
 }
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
