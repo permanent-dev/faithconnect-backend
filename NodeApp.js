@@ -83,7 +83,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: ['https://faithconnectapp.vercel.app/','https://faithconnectapp-ow9jpodet-osilamas-projects.vercel.app', 'http://localhost:5173','http://localhost:4173','https://faithconnectapp-rklw51uif-osilamas-projects.vercel.app'],
+    origin: ['https://faithconnectapp.vercel.app/', 'https://faithconnectapp-ow9jpodet-osilamas-projects.vercel.app', 'http://localhost:5173'],
     credentials: true
 
 }));
@@ -284,7 +284,8 @@ app.post(`/members/login`, async (req, res) => {
         if (member.rows.length === 0) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials'
+                message: 'Invalid credentials',
+                data: "this account doesn't exist",
             });
         }
 
@@ -304,7 +305,7 @@ app.post(`/members/login`, async (req, res) => {
         if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials'
+                message: 'password incorrect'
             });
         }
 
@@ -328,7 +329,8 @@ app.post(`/members/login`, async (req, res) => {
                     firstName: memberData.first_name,
                     lastName: memberData.last_name,
                     email: memberData.email,
-                    churchRole: memberData.church_role
+                    churchRole: memberData.church_role,
+                    active: memberData.is_active,
                 },
                 token
             }
@@ -397,8 +399,18 @@ function authenticateToken(req, res, next) {
 }
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+    const b = await pool.connect();
+    try {
+
+        if (b) {
+            res.json({ status: 'OK', timestamp: new Date().toISOString() });
+
+        }
+    } catch (error) {
+        console.error('this is why health is bad:', error)
+
+    }
 });
 
 const PORT = process.env.PORT || 5000;
