@@ -102,8 +102,8 @@ const pool = new Pool({
         sslmode: 'require',
 
     },
-    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-    connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+    idleTimeoutMillis: 50000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 3000, // Return an error after 2 seconds if connection could not be established
     retryAttempts: 3 // Number of times to retry a failed connectio
 });
 
